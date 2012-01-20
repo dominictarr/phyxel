@@ -1,0 +1,145 @@
+<html>
+
+<body>
+
+<canvas id=canvas width=2000 height=1600></canvas>
+</body>
+
+<script src="lib/vector.js"></script>
+<script>
+var canvas = document.getElementById('canvas')
+var context = canvas.getContext('2d');
+var center = new Vector(canvas.width/2,canvas.height/2)
+    //paint whole canvas black
+
+  var bodies = []
+  function randV() {
+    return Vector.random(canvas.width,canvas.height).iabs()
+  }
+  function randS() {
+    return ((Math.random()*50)+ 10)
+  }
+  function Body (v, r) {
+    this.origin = v || randV()
+    this.velocity = Vector.a2v(Math.random()*2*Math.PI).imul(10)
+    this._origin = this.origin.sub(this.velocity)
+    this.speed = this.velocity.length()
+    this.radius = r || randS()
+  }
+
+  function each(ary, iter) {
+    for(var i in ary) iter(ary[i],i,ary)
+  }
+  function times(n, iter) {
+    var i = 0; while (i < n) iter(i++, n)
+  }
+  function drawBody (b) {
+     context.strokeStyle = 'rgba(0,255,0,1)';
+     context.lineWidth = 1;
+     context.beginPath();
+     context.arc(b.origin.x, b.origin.y, b.radius, 0, Math.PI*2, false);  
+      context.stroke()
+  }
+
+  function draw() {
+    context.fillStyle = 'rgba(40,40,40,0.1)';
+    context.fillRect(0, 0, canvas.width, canvas.height); 
+    each(bodies, drawBody)
+  }
+
+  times(36, function () {bodies.push(new Body())})
+  draw()
+
+  var G = 150000;
+  function getGravity (a, b) {
+    var dir = a.sub(b)
+    var l = dir.length() //there are unnecessary Math.sqrt, since nor also gets length
+    return dir.nor().imul(G/(l*l))
+  }
+  
+  function assert(test, message) {
+    if(!test) throw new Error(message)
+  }
+  
+        /*
+        VERTLET INTEGRATION
+        it make a big difference which way around this is done.
+        I had it like this before:
+
+            body.origin
+              .imul(2).isub(_origin)
+              .iadd(getGravity(center, body.origin).imul(delta))        
+
+        I noticed that all my planets would fall into the gravity well and be slingshot 
+        out. some would then fall back into the well...
+        they where loosing energy. I changed it, so that I add the acceleration 
+        due to gravity first --  and it looks right. more stable orbits.
+
+        another idea:
+          variable timeslices with euler integration 
+            -- give faster moving slices more steps.
+
+        */
+  setInterval(function () {
+    var delta = 0.1 //seconds
+    
+    //sort bodies by thier speed, decending
+    bodies.sort(function (a,b) {
+      return b.speed - a.speed
+    })
+    var totalSpeed = 0
+    console.log(bodies.map(function (b) {
+      var s = Math.round(b.speed)
+      totalSpeed += s
+      return s
+    }).join(','))
+
+
+    function step(body, delta)  {
+        /*
+        // verlet integration (_origin is last tick's origin)
+        body.origin
+          .iadd(getGravity(center, body.origin).imul(delta))
+          .imul(2).isub(_origin)
+        */
+        body.velocity.iadd(getGravity(center, body.origin).imul(delta))
+        body.speed = body.velocity.length()
+        body.origin.iadd(body.velocity.mul(delta))
+    }
+    
+    /*
+      give each body steps depending on the square of it's speed.
+      this works fairly well. getting lots of quite stable highly eliptical orbits.
+      interestingly, I'm not seeing many regular orbits.
+      
+      bodies do have a tendency to fall into the gravity well eventually...(rounding errors?)
+      
+      the body moves quickly at the perigee, but slowly at the apogee.
+      approximating the curve with many straight lines is more accurate when 
+      you use more lines. the apogee uses many slices, since it's moving slowly.
+      I have made it use more slices at the perigee, but is it the same number 
+      of steps per distance traveled?
+      
+      also, note at the perigee the steps (thus the delta) is very small. 
+      could this cause rounding error? at the apogee the speed is very small,
+      could this balance out the small delta at the perigee?
+      
+      currently, I always doing at least one step per frame, maybe it would be better 
+      to update steps per object independent of frames... 
+      so that it does not loose energy.
+      
+      another (heavy) approach would just be to use BigDecimals. 
+      though, that will be much slower it would be better to just not care.
+    */
+    
+    each(bodies, function (b) {
+      var steps = Math.round((b.speed*b.speed)/100) || 1
+      var l = steps
+      while(l --)
+        step(b,delta/steps)
+    })
+    draw()
+  }, 100)  
+
+</script>
+</html>

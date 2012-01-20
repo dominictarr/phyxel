@@ -1,0 +1,11 @@
+{ "name": "phyxel"
+, "version": "0.0.0"
+, "description": ""
+, "homepage": "http://github.com/dominictarr/phyxel"
+, "repository": 
+  { "type": "git"
+  , "url": "https://github.com/dominictarr/phyxel.git" }
+, "dependencies": {}
+, "devDependencies": {}
+, "author": "Dominic Tarr <dominic.tarr@gmail.com> (http://bit.ly/dominictarr)"
+, "scripts": { "test": "meta-test test/*.js" } }
